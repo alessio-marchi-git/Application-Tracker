@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Application Tracker</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <main class="app">
+        <header class="app__header">
+            <h1>Application Tracker</h1>
+            <div class="app__actions">
+                <button id="add-row" class="button">Aggiungi riga</button>
+                <button id="export-data" class="button button--secondary">Esporta dati</button>
+                <button id="import-data" class="button button--secondary">Importa dati</button>
+                <button id="clear-data" class="button button--danger">Svuota tracker</button>
+                <input type="file" id="file-input" accept="application/json" hidden>
+            </div>
+            <p class="app__hint">I dati vengono salvati automaticamente nel tuo browser (nessun backend richiesto).</p>
+        </header>
+        <section class="sheet" aria-live="polite">
+            <div class="sheet__container">
+                <table id="application-table" class="table">
+                    <thead>
+                        <tr>
+                            <th scope="col">Azienda</th>
+                            <th scope="col">Titolo Posizione</th>
+                            <th scope="col">Link Annuncio</th>
+                            <th scope="col">Stato</th>
+                            <th scope="col">Data Candidatura</th>
+                            <th scope="col">Contatti HR</th>
+                            <th scope="col">Tipo di Contratto</th>
+                            <th scope="col">Retribuzione e Range</th>
+                            <th scope="col">Follow-up</th>
+                            <th scope="col">CV Inviato</th>
+                            <th scope="col">Cover Letter</th>
+                            <th scope="col">Referral</th>
+                            <th scope="col">Note</th>
+                            <th scope="col" class="column--actions">Azioni</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+    </main>
+    <template id="row-template">
+        <tr>
+            <td contenteditable="true" data-key="company"></td>
+            <td contenteditable="true" data-key="position"></td>
+            <td contenteditable="true" data-key="jobLink"></td>
+            <td contenteditable="true" data-key="status"></td>
+            <td contenteditable="true" data-key="applicationDate"></td>
+            <td contenteditable="true" data-key="hrContact"></td>
+            <td contenteditable="true" data-key="contractType"></td>
+            <td contenteditable="true" data-key="salary"></td>
+            <td contenteditable="true" data-key="followUp"></td>
+            <td contenteditable="true" data-key="cvSent"></td>
+            <td contenteditable="true" data-key="coverLetter"></td>
+            <td contenteditable="true" data-key="referral"></td>
+            <td contenteditable="true" data-key="notes"></td>
+            <td class="column--actions">
+                <button type="button" class="icon-button" data-action="duplicate" title="Duplica riga">⎘</button>
+                <button type="button" class="icon-button icon-button--danger" data-action="delete" title="Elimina riga">✕</button>
+            </td>
+        </tr>
+    </template>
+    <script src="script.js" defer></script>
+</body>
+</html>
