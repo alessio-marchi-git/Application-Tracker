@@ -44,4 +44,4 @@ Application Tracker/
 Apri una issue con una descrizione chiara del problema o della funzionalità desiderata. Allegare screenshot e JSON di esportazione aiuta a riprodurre il comportamento.
 
 ## Licenza
-Distribuito con la licenza indicata nel repository (aggiungi qui i dettagli se necessario).
+Questo progetto è distribuito sotto licenza [GNU General Public License v3.0](LICENSE). Consulta il file per i termini completi.
