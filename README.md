@@ -2,6 +2,9 @@
 
 Application Tracker è un foglio di calcolo interattivo in pure HTML/CSS/JavaScript pensato per monitorare le candidature durante una ricerca di lavoro. I dati vengono salvati nel `localStorage` del browser, quindi non richiede un backend né configurazioni complesse.
 
+## Anteprima
+![Schermata principale dell'applicazione](./screenshot/home.png)
+
 ## Funzionalità principali
 - Aggiungi, duplica ed elimina righe con un solo click
 - Salvataggio automatico dei dati nel browser
