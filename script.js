@@ -1,5 +1,11 @@
 (function () {
+    const SCHEMA_VERSION = 1;
     const STORAGE_KEY = 'application-tracker-data';
+    const MAX_IMPORT_SIZE = 5 * 1024 * 1024;
+    const DEBOUNCE_MS = 300;
+    const UNDO_LIMIT = 50;
+    const STATUS_OPTIONS = ['', 'In attesa', 'Colloquio', 'Offerta', 'Rifiutato', 'Ritirato'];
+
     const tableBody = document.querySelector('#application-table tbody');
     const rowTemplate = document.getElementById('row-template');
     const addRowButton = document.getElementById('add-row');
@@ -7,6 +13,8 @@
     const exportButton = document.getElementById('export-data');
     const importButton = document.getElementById('import-data');
     const fileInput = document.getElementById('file-input');
+    const emptyState = document.getElementById('empty-state');
+    const toast = document.getElementById('toast');
 
     const COLUMN_KEYS = [
         'company',
@@ -25,6 +33,8 @@
     ];
 
     let rows = [];
+    let undoStack = [];
+    const saveTimeouts = new Map();
 
     function supportsLocalStorage() {
         try {
@@ -54,6 +64,23 @@
         }, { id: generateRowId() });
     }
 
+    function normalizeRow(row = {}) {
+        return {
+            ...defaultRowData(),
+            ...row,
+            id: row.id || generateRowId()
+        };
+    }
+
+    function normalizeRows(data) {
+        const normalized = data.map(normalizeRow);
+        return normalized.length ? normalized : [defaultRowData()];
+    }
+
+    function sanitizeText(input) {
+        return input.replace(/<[^>]*>/g, '');
+    }
+
     function loadData() {
         if (!canPersist) {
             rows = [defaultRowData()];
@@ -63,15 +90,9 @@
         try {
             const raw = window.localStorage.getItem(STORAGE_KEY);
             const parsed = raw ? JSON.parse(raw) : null;
-            if (Array.isArray(parsed)) {
-                rows = parsed.map((row) => ({
-                    ...defaultRowData(),
-                    ...row,
-                    id: row.id || generateRowId()
-                }));
-                if (!rows.length) {
-                    rows = [defaultRowData()];
-                }
+            if (parsed && typeof parsed === 'object') {
+                const data = Array.isArray(parsed) ? parsed : (parsed.rows || []);
+                rows = normalizeRows(data);
                 return;
             }
         } catch (error) {
@@ -86,11 +107,47 @@
             return;
         }
         try {
-            const payload = JSON.stringify(rows);
+            const payload = JSON.stringify({ version: SCHEMA_VERSION, rows });
             window.localStorage.setItem(STORAGE_KEY, payload);
+            showToast();
         } catch (error) {
+            if (error.name === 'QuotaExceededError') {
+                window.alert('Spazio di archiviazione esaurito. Esporta i dati e svuota il tracker.');
+            }
             console.warn('Impossibile salvare i dati:', error);
         }
+    }
+
+    function showToast() {
+        if (!toast) {
+            return;
+        }
+        toast.classList.add('toast--visible');
+        window.setTimeout(() => toast.classList.remove('toast--visible'), 1500);
+    }
+
+    function updateEmptyState() {
+        if (!emptyState) {
+            return;
+        }
+        const isEmpty = rows.length <= 1 && COLUMN_KEYS.every((key) => !rows[0]?.[key]);
+        emptyState.hidden = !isEmpty;
+    }
+
+    function createStatusSelect(value) {
+        const select = document.createElement('select');
+        select.className = 'status-select';
+        select.dataset.key = 'status';
+        STATUS_OPTIONS.forEach((opt) => {
+            const option = document.createElement('option');
+            option.value = opt;
+            option.textContent = opt || '\u2014 Seleziona \u2014';
+            if (opt === value) {
+                option.selected = true;
+            }
+            select.appendChild(option);
+        });
+        return select;
     }
 
     function createRowElement(rowData) {
@@ -101,7 +158,12 @@
         rowEl.querySelectorAll('[data-key]').forEach((cell) => {
             const key = cell.getAttribute('data-key');
             const value = rowData[key] ?? '';
-            cell.textContent = value;
+            if (key === 'status') {
+                cell.removeAttribute('contenteditable');
+                cell.appendChild(createStatusSelect(value));
+            } else {
+                cell.textContent = value;
+            }
         });
 
         return rowEl;
@@ -114,16 +176,33 @@
             fragment.appendChild(createRowElement(row));
         });
         tableBody.appendChild(fragment);
+        updateEmptyState();
+    }
+
+    function appendRowToDOM(rowData) {
+        tableBody.appendChild(createRowElement(rowData));
+        updateEmptyState();
+    }
+
+    function removeRowFromDOM(rowId) {
+        const rowEl = tableBody.querySelector(`tr[data-id="${rowId}"]`);
+        if (rowEl) {
+            rowEl.remove();
+        }
+        updateEmptyState();
+    }
+
+    function pushUndo(entry) {
+        undoStack.push(entry);
+        if (undoStack.length > UNDO_LIMIT) {
+            undoStack.shift();
+        }
     }
 
     function addRow(data) {
-        const newRow = {
-            ...defaultRowData(),
-            ...data,
-            id: generateRowId()
-        };
+        const newRow = normalizeRow(data);
         rows.push(newRow);
-        renderRows();
+        appendRowToDOM(newRow);
         saveData();
     }
 
@@ -132,11 +211,14 @@
         if (index === -1) {
             return;
         }
+        pushUndo({ action: 'delete', data: rows[index], index });
         rows.splice(index, 1);
         if (!rows.length) {
             rows.push(defaultRowData());
+            renderRows();
+        } else {
+            removeRowFromDOM(rowId);
         }
-        renderRows();
         saveData();
     }
 
@@ -161,10 +243,21 @@
         saveData();
     }
 
-    function sanitizeText(input) {
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = input;
-        return tempDiv.textContent || '';
+    function undoLast() {
+        const last = undoStack.pop();
+        if (!last) {
+            return;
+        }
+        if (last.action === 'delete') {
+            if (rows.length === 1 && COLUMN_KEYS.every((k) => !rows[0][k])) {
+                rows = [];
+            }
+            rows.splice(last.index, 0, last.data);
+        } else if (last.action === 'clear') {
+            rows = last.data;
+        }
+        renderRows();
+        saveData();
     }
 
     function exportData() {
@@ -181,27 +274,28 @@
     }
 
     function importData(file) {
+        if (file.size > MAX_IMPORT_SIZE) {
+            window.alert('File troppo grande (max 5 MB).');
+            return;
+        }
         const reader = new FileReader();
         reader.onload = (event) => {
             try {
                 const parsed = JSON.parse(event.target?.result || '[]');
-                if (!Array.isArray(parsed)) {
+                const data = Array.isArray(parsed) ? parsed : (parsed.rows || []);
+                if (!Array.isArray(data)) {
                     throw new Error('Formato non valido');
                 }
-                rows = parsed.map((row) => ({
-                    ...defaultRowData(),
-                    ...row,
-                    id: row.id || generateRowId()
-                }));
-                if (!rows.length) {
-                    rows = [defaultRowData()];
-                }
+                rows = normalizeRows(data);
                 renderRows();
                 saveData();
             } catch (error) {
                 window.alert('Impossibile importare i dati: usa un file JSON esportato da questa applicazione.');
                 console.error('Errore importazione dati', error);
             }
+        };
+        reader.onerror = () => {
+            window.alert('Errore nella lettura del file.');
         };
         reader.readAsText(file);
     }
@@ -213,6 +307,7 @@
         if (!confirmed) {
             return;
         }
+        pushUndo({ action: 'clear', data: [...rows] });
         rows = [defaultRowData()];
         renderRows();
         saveData();
@@ -235,16 +330,13 @@
 
     tableBody.addEventListener('click', (event) => {
         const target = event.target;
-        if (!(target instanceof HTMLElement)) {
+        const button = target instanceof HTMLElement ? target.closest('[data-action]') : null;
+        if (!button) {
             return;
         }
 
-        const action = target.dataset.action;
-        if (!action) {
-            return;
-        }
-
-        const rowEl = target.closest('tr');
+        const action = button.dataset.action;
+        const rowEl = button.closest('tr');
         const rowId = rowEl?.dataset.id;
         if (!rowId) {
             return;
@@ -257,6 +349,19 @@
         }
     });
 
+    tableBody.addEventListener('change', (event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLSelectElement) || !target.dataset.key) {
+            return;
+        }
+        const rowEl = target.closest('tr');
+        const rowId = rowEl?.dataset.id;
+        if (!rowId) {
+            return;
+        }
+        updateRowValue(rowId, target.dataset.key, target.value);
+    });
+
     tableBody.addEventListener('paste', (event) => {
         const target = event.target;
         if (!(target instanceof HTMLElement) || !target.matches('[contenteditable="true"]')) {
@@ -264,10 +369,21 @@
         }
         event.preventDefault();
         const text = event.clipboardData?.getData('text/plain') || '';
-        document.execCommand('insertText', false, text);
+        const selection = window.getSelection();
+        if (selection && selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            range.deleteContents();
+            range.insertNode(document.createTextNode(text));
+            range.collapse(false);
+        }
     });
 
-    let saveTimeout;
+    tableBody.addEventListener('keydown', (event) => {
+        if (event.key === 'Enter' && event.target.matches('[contenteditable="true"]')) {
+            event.preventDefault();
+        }
+    });
+
     tableBody.addEventListener('input', (event) => {
         const target = event.target;
         if (!(target instanceof HTMLElement) || !target.matches('[contenteditable="true"]')) {
@@ -283,16 +399,31 @@
         if (target.textContent !== sanitizedValue) {
             target.textContent = sanitizedValue;
         }
-        window.clearTimeout(saveTimeout);
-        saveTimeout = window.setTimeout(() => {
+        const existingTimeout = saveTimeouts.get(rowId);
+        if (existingTimeout) {
+            window.clearTimeout(existingTimeout);
+        }
+        saveTimeouts.set(rowId, window.setTimeout(() => {
             updateRowValue(rowId, key, sanitizedValue.trim());
-        }, 300);
+            saveTimeouts.delete(rowId);
+        }, DEBOUNCE_MS));
     });
 
     document.addEventListener('keydown', (event) => {
         if (event.key === 's' && (event.ctrlKey || event.metaKey)) {
             event.preventDefault();
             saveData();
+        }
+        if (event.key === 'z' && (event.ctrlKey || event.metaKey) && !event.target.matches?.('[contenteditable="true"]')) {
+            event.preventDefault();
+            undoLast();
+        }
+    });
+
+    window.addEventListener('storage', (event) => {
+        if (event.key === STORAGE_KEY) {
+            loadData();
+            renderRows();
         }
     });
 

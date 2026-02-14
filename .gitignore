@@ -1,0 +1,10 @@
+# Claude Code
+.claude/
+
+# Windows
+desktop.ini
+Thumbs.db
+nul
+
+# macOS
+.DS_Store

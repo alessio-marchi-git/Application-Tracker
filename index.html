@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'">
     <title>Application Tracker</title>
     <link rel="stylesheet" href="style.css">
 </head>
@@ -17,9 +18,10 @@
                 <button id="clear-data" class="button button--danger">Svuota tracker</button>
                 <input type="file" id="file-input" accept="application/json" hidden>
             </div>
-            <p class="app__hint">I dati vengono salvati automaticamente nel tuo browser (nessun backend richiesto).</p>
+            <p class="app__hint">I dati vengono salvati automaticamente nel tuo browser. Ctrl+Z per annullare l'eliminazione.</p>
         </header>
         <section class="sheet" aria-live="polite">
+            <p id="empty-state" class="sheet__empty" hidden>Nessuna candidatura ancora. Clicca "Aggiungi riga" per iniziare!</p>
             <div class="sheet__container">
                 <table id="application-table" class="table">
                     <thead>
@@ -46,12 +48,13 @@
             </div>
         </section>
     </main>
+    <div id="toast" class="toast" role="status" aria-live="polite">Salvato</div>
     <template id="row-template">
         <tr>
             <td contenteditable="true" data-key="company"></td>
             <td contenteditable="true" data-key="position"></td>
             <td contenteditable="true" data-key="jobLink"></td>
-            <td contenteditable="true" data-key="status"></td>
+            <td data-key="status"></td>
             <td contenteditable="true" data-key="applicationDate"></td>
             <td contenteditable="true" data-key="hrContact"></td>
             <td contenteditable="true" data-key="contractType"></td>
@@ -62,8 +65,18 @@
             <td contenteditable="true" data-key="referral"></td>
             <td contenteditable="true" data-key="notes"></td>
             <td class="column--actions">
-                <button type="button" class="icon-button" data-action="duplicate" title="Duplica riga">⎘</button>
-                <button type="button" class="icon-button icon-button--danger" data-action="delete" title="Elimina riga">✕</button>
+                <button type="button" class="icon-button" data-action="duplicate" aria-label="Duplica riga">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="9" y="9" width="13" height="13" rx="2"/>
+                        <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>
+                    </svg>
+                </button>
+                <button type="button" class="icon-button icon-button--danger" data-action="delete" aria-label="Elimina riga">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"/>
+                        <line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                </button>
             </td>
         </tr>
     </template>
