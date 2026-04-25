@@ -303,7 +303,7 @@
     addRowButton.addEventListener('click', () => addRow());
 
     clearButton.addEventListener('click', () => {
-        const confirmed = window.confirm('Vuoi davvero cancellare tutte le righe? L\'operazione non può essere annullata.');
+        const confirmed = window.confirm('Vuoi davvero cancellare tutte le righe? Puoi annullare con Ctrl+Z.');
         if (!confirmed) {
             return;
         }
@@ -399,13 +399,14 @@
         if (target.textContent !== sanitizedValue) {
             target.textContent = sanitizedValue;
         }
-        const existingTimeout = saveTimeouts.get(rowId);
+        const timeoutKey = `${rowId}:${key}`;
+        const existingTimeout = saveTimeouts.get(timeoutKey);
         if (existingTimeout) {
             window.clearTimeout(existingTimeout);
         }
-        saveTimeouts.set(rowId, window.setTimeout(() => {
+        saveTimeouts.set(timeoutKey, window.setTimeout(() => {
             updateRowValue(rowId, key, sanitizedValue.trim());
-            saveTimeouts.delete(rowId);
+            saveTimeouts.delete(timeoutKey);
         }, DEBOUNCE_MS));
     });
 
