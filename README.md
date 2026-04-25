@@ -21,7 +21,7 @@ Application Tracker è un foglio di calcolo interattivo in pure HTML/CSS/JavaScr
 2. Apri `index.html` con il tuo browser preferito.
 3. Inizia ad aggiornare le celle della tabella: i dati vengono salvati automaticamente.
 
-> Suggerimento: premi `Ctrl+S` (o `Cmd+S` su macOS) per forzare il salvataggio immediato nel `localStorage`.
+> Suggerimento: premi `Ctrl+S` (o `Cmd+S` su macOS) per forzare il salvataggio immediato nel `localStorage`. Usa `Ctrl+Z`/`Cmd+Z` per annullare eliminazione o svuotamento.
 
 ## Esportazione e importazione
 - **Esporta dati**: genera un file JSON formattato con tutte le candidature (comodo per backup o migrazione).
